@@ -9,9 +9,9 @@
         /omit-if-no-ref/ ib_move_to_arrow: input_behavior_move_to_keypress {
             compatible = "zmk,input-behavior-move-to-keypress";
             #binding-cells = <0>;
-            threshold = <50>;
-            rate-limit-ms = <50>;
-            bindings = <&kp RIGHT>, <&kp LEFT>, <&kp UP>, <&kp DOWN>;
+            threshold = <300>;        // Безпечний поріг
+            rate-limit-ms = <50>;     // Обмеження частоти
+            // Використовує фіксовані arrow keys: right, left, up, down
         };
     };
 }; 
