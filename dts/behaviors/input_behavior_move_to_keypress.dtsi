@@ -10,6 +10,7 @@
             compatible = "zmk,input-behavior-move-to-keypress";
             #binding-cells = <0>;
             threshold = <50>;
+            rate-limit-ms = <50>;
             bindings = <&kp RIGHT>, <&kp LEFT>, <&kp UP>, <&kp DOWN>;
         };
     };

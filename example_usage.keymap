@@ -19,7 +19,8 @@
     ib_move_to_arrow: ib_move_to_arrow {
         compatible = "zmk,input-behavior-move-to-keypress";
         #binding-cells = <0>;
-        threshold = <30>; // Поріг чутливості - 30 пікселів
+        threshold = <300>; // Поріг чутливості - 300 пікселів
+        rate-limit-ms = <50>; // Мінімум 50мс між подіями (20 подій/сек)
         // x-invert; // Розкоментувати для інверсії X
         // y-invert; // Розкоментувати для інверсії Y
         bindings = <&kp RIGHT>, <&kp LEFT>, <&kp UP>, <&kp DOWN>;
@@ -29,7 +30,8 @@
     ib_move_to_wasd: ib_move_to_wasd {
         compatible = "zmk,input-behavior-move-to-keypress";
         #binding-cells = <0>;
-        threshold = <50>; // Менша чутливість
+        threshold = <500>; // Менша чутливість
+        rate-limit-ms = <75>; // Повільніше для WASD
         bindings = <&kp D>, <&kp A>, <&kp W>, <&kp S>; // WASD замість стрілок
     };
 

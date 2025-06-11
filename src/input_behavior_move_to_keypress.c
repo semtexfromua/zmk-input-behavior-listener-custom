@@ -37,10 +37,13 @@ struct move_to_keypress_xy_data {
 struct behavior_move_to_keypress_data {
     const struct device *dev;
     struct move_to_keypress_xy_data data;
+    int64_t last_trigger_time;
+    uint16_t min_interval_ms;
 };
 
 struct behavior_move_to_keypress_config {
     int16_t threshold;
+    uint16_t rate_limit_ms;
     bool x_invert;
     bool y_invert;
     struct zmk_behavior_binding bindings[4]; // right, left, up, down
@@ -97,36 +100,65 @@ static void trigger_key_press(const struct zmk_behavior_binding *binding) {
 
 static void check_and_trigger_movements(const struct behavior_move_to_keypress_config *config,
                                        struct behavior_move_to_keypress_data *data) {
+    int64_t current_time = k_uptime_get();
+    
+    // Rate limiting: обмежуємо частоту генерації подій
+    if (current_time - data->last_trigger_time < data->min_interval_ms) {
+        return; // Занадто рано для наступної події
+    }
+    
     bool triggered = false;
+    int max_events_per_cycle = 1; // Обмежуємо до 1 події за цикл
+    int events_generated = 0;
 
-    // Check X axis movement (left/right)
-    if (data->data.x_delta >= config->threshold) {
-        // Move right
-        trigger_key_press(&config->bindings[0]); // right binding
-        data->data.x_delta -= config->threshold;
-        triggered = true;
-        LOG_DBG("Triggered RIGHT movement, remaining delta: %d", data->data.x_delta);
-    } else if (data->data.x_delta <= -config->threshold) {
-        // Move left  
-        trigger_key_press(&config->bindings[1]); // left binding
-        data->data.x_delta += config->threshold;
-        triggered = true;
-        LOG_DBG("Triggered LEFT movement, remaining delta: %d", data->data.x_delta);
+    // Check X axis movement (left/right) - тільки одну подію за раз
+    if (events_generated < max_events_per_cycle) {
+        if (data->data.x_delta >= config->threshold) {
+            // Move right
+            trigger_key_press(&config->bindings[0]); // right binding
+            data->data.x_delta -= config->threshold;
+            events_generated++;
+            triggered = true;
+            LOG_DBG("Triggered RIGHT movement, remaining delta: %d", data->data.x_delta);
+        } else if (data->data.x_delta <= -config->threshold) {
+            // Move left  
+            trigger_key_press(&config->bindings[1]); // left binding
+            data->data.x_delta += config->threshold;
+            events_generated++;
+            triggered = true;
+            LOG_DBG("Triggered LEFT movement, remaining delta: %d", data->data.x_delta);
+        }
     }
 
-    // Check Y axis movement (up/down)
-    if (data->data.y_delta >= config->threshold) {
-        // Move down
-        trigger_key_press(&config->bindings[3]); // down binding
-        data->data.y_delta -= config->threshold;
-        triggered = true;
-        LOG_DBG("Triggered DOWN movement, remaining delta: %d", data->data.y_delta);
-    } else if (data->data.y_delta <= -config->threshold) {
-        // Move up
-        trigger_key_press(&config->bindings[2]); // up binding  
-        data->data.y_delta += config->threshold;
-        triggered = true;
-        LOG_DBG("Triggered UP movement, remaining delta: %d", data->data.y_delta);
+    // Check Y axis movement (up/down) - тільки якщо ще не згенерували подію по X
+    if (events_generated < max_events_per_cycle) {
+        if (data->data.y_delta >= config->threshold) {
+            // Move down
+            trigger_key_press(&config->bindings[3]); // down binding
+            data->data.y_delta -= config->threshold;
+            events_generated++;
+            triggered = true;
+            LOG_DBG("Triggered DOWN movement, remaining delta: %d", data->data.y_delta);
+        } else if (data->data.y_delta <= -config->threshold) {
+            // Move up
+            trigger_key_press(&config->bindings[2]); // up binding  
+            data->data.y_delta += config->threshold;
+            events_generated++;
+            triggered = true;
+            LOG_DBG("Triggered UP movement, remaining delta: %d", data->data.y_delta);
+        }
+    }
+    
+    // Оновлюємо час останньої події тільки якщо щось було згенеровано
+    if (triggered) {
+        data->last_trigger_time = current_time;
+        
+        // Обмежуємо накопичення delta для запобігання зависанню
+        const int16_t max_delta = config->threshold * 3;
+        if (data->data.x_delta > max_delta) data->data.x_delta = max_delta;
+        if (data->data.x_delta < -max_delta) data->data.x_delta = -max_delta;
+        if (data->data.y_delta > max_delta) data->data.y_delta = max_delta;
+        if (data->data.y_delta < -max_delta) data->data.y_delta = -max_delta;
     }
 }
 
@@ -170,6 +202,9 @@ static int input_behavior_move_to_keypress_init(const struct device *dev) {
     data->data.mode = IB_MOVE_TO_KEYPRESS_XY_DATA_MODE_NONE;
     data->data.x_delta = 0;
     data->data.y_delta = 0;
+    data->last_trigger_time = 0;
+    const struct behavior_move_to_keypress_config *config = dev->config;
+    data->min_interval_ms = config->rate_limit_ms;
     return 0;
 };
 
@@ -190,6 +225,7 @@ static const struct behavior_driver_api behavior_move_to_keypress_driver_api = {
     static struct behavior_move_to_keypress_data behavior_move_to_keypress_data_##n = {};                \
     static struct behavior_move_to_keypress_config behavior_move_to_keypress_config_##n = {              \
         .threshold = DT_INST_PROP(n, threshold),                                                   \
+        .rate_limit_ms = DT_INST_PROP_OR(n, rate_limit_ms, 50),                                    \
         .x_invert = DT_INST_PROP_OR(n, x_invert, false),                                           \
         .y_invert = DT_INST_PROP_OR(n, y_invert, false),                                           \
         .bindings = {                                                                              \

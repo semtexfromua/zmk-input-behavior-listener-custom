@@ -10,6 +10,10 @@ properties:
     type: int
     default: 50
     description: "Threshold value for triggering key events"
+  rate-limit-ms:
+    type: int
+    default: 50
+    description: "Minimum interval between key events in milliseconds"
   x-invert:
     type: boolean
     description: "Invert X axis direction"

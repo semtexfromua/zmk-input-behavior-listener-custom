@@ -6,9 +6,11 @@
 
 - ✅ **Накопичення руху** - збирає delta значення до порогу
 - ✅ **Налаштовуваний поріг** - через параметр `threshold`
+- ✅ **Rate Limiting** - захист від зависання через `rate-limit-ms`
 - ✅ **Інверсія осей** - підтримка `x-invert` та `y-invert`
 - ✅ **Гнучкі bindings** - будь-які клавіші (стрілки, WASD, HJKL)
 - ✅ **Точне позиціонування** - ідеально для редакторів коду
+- ✅ **Захист від перевантаження** - обмеження накопичення delta
 
 ## Використання
 
@@ -18,7 +20,8 @@
 ib_move_to_arrow: ib_move_to_arrow {
     compatible = "zmk,input-behavior-move-to-keypress";
     #binding-cells = <0>;
-    threshold = <30>; // Поріг чутливості
+    threshold = <300>; // Поріг чутливості
+    rate-limit-ms = <50>; // Мінімум 50мс між подіями
     // x-invert; // Інверсія X (розкоментувати при потребі)
     // y-invert; // Інверсія Y (розкоментувати при потребі)
     bindings = <&kp RIGHT>, <&kp LEFT>, <&kp UP>, <&kp DOWN>;
@@ -47,7 +50,8 @@ trackball_arrow_listener {
 ib_move_to_wasd: ib_move_to_wasd {
     compatible = "zmk,input-behavior-move-to-keypress";
     #binding-cells = <0>;
-    threshold = <50>;
+    threshold = <400>;
+    rate-limit-ms = <75>; // Повільніше для WASD
     bindings = <&kp D>, <&kp A>, <&kp W>, <&kp S>;
 };
 ```
@@ -57,7 +61,8 @@ ib_move_to_wasd: ib_move_to_wasd {
 ib_move_to_vim: ib_move_to_vim {
     compatible = "zmk,input-behavior-move-to-keypress";
     #binding-cells = <0>;
-    threshold = <40>;
+    threshold = <350>;
+    rate-limit-ms = <60>; // Середня швидкість для Vim
     bindings = <&kp L>, <&kp H>, <&kp K>, <&kp J>;
 };
 ```
@@ -67,6 +72,7 @@ ib_move_to_vim: ib_move_to_vim {
 | Параметр | Тип | За замовчуванням | Опис |
 |----------|-----|------------------|------|
 | `threshold` | int | 50 | Поріг накопичення для генерації події |
+| `rate-limit-ms` | int | 50 | Мінімальний інтервал між подіями (мс) |
 | `x-invert` | boolean | false | Інверсія напрямку X осі |
 | `y-invert` | boolean | false | Інверсія напрямку Y осі |
 | `bindings` | phandle-array | обов'язковий | Bindings для: право, ліво, вгору, вниз |
@@ -75,8 +81,19 @@ ib_move_to_vim: ib_move_to_vim {
 
 1. **Накопичення**: behavior накопичує delta значення по X/Y осям
 2. **Перевірка порогу**: при досягненні `threshold` генерується key event
-3. **Віднімання порогу**: з delta віднімається `threshold`, залишок зберігається
-4. **Повторення**: процес продовжується для плавної навігації
+3. **Rate Limiting**: обмеження частоти подій через `rate-limit-ms`
+4. **Одна подія за цикл**: генерується максимум 1 подія за один виклик
+5. **Віднімання порогу**: з delta віднімається `threshold`, залишок зберігається
+6. **Захист від переповнення**: delta обмежується до `threshold * 3`
+7. **Повторення**: процес продовжується для плавної навігації
+
+## Захист від зависання
+
+Behavior має вбудований захист від генерації надмірної кількості подій:
+- **Rate limiting**: мінімум `rate-limit-ms` мілісекунд між подіями
+- **Одна подія за виклик**: не більше однієї події клавіші за один цикл
+- **Обмеження delta**: запобігає накопиченню надмірних значень
+- **Рекомендовані налаштування**: `threshold >= 300`, `rate-limit-ms >= 50`
 
 ## Приклад keymap
 
@@ -99,7 +116,8 @@ ib_move_to_vim: ib_move_to_vim {
     ib_move_to_arrow: ib_move_to_arrow {
         compatible = "zmk,input-behavior-move-to-keypress";
         #binding-cells = <0>;
-        threshold = <30>;
+        threshold = <300>;
+        rate-limit-ms = <50>;
         bindings = <&kp RIGHT>, <&kp LEFT>, <&kp UP>, <&kp DOWN>;
     };
 
