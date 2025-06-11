@@ -1,0 +1,32 @@
+# Copyright (c) 2020 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Input Behavior Sensor Rotate
+
+compatible: "zmk,input-behavior-sensor-rotate"
+
+properties:
+  threshold:
+    type: int
+    default: 50
+    description: "Threshold value for triggering key events"
+  x-invert:
+    type: boolean
+    description: "Invert X axis direction"
+  y-invert:
+    type: boolean  
+    description: "Invert Y axis direction"
+  bindings:
+    type: phandle-array
+    required: true
+    description: "Key bindings for right, left, up, down movements"
+  "#sensor-binding-cells":
+    type: int
+    const: 4
+    description: "Number of cells in bindings (right, left, up, down)"
+
+sensor-binding-cells:
+  - right
+  - left  
+  - up
+  - down 

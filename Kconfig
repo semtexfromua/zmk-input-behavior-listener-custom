@@ -1,0 +1,26 @@
+# Sensor data simulator
+#
+# Copyright (c) 2019 Nordic Semiconductor
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+DT_COMPAT_ZMK_INPUT_BEHAVIOR_LISTENER := zmk,input-behavior-listener
+config ZMK_INPUT_BEHAVIOR_LISTENER
+		bool
+		default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_BEHAVIOR_LISTENER))
+
+DT_COMPAT_ZMK_INPUT_BEHAVIOR_SCALER := zmk,input-behavior-scaler
+config ZMK_INPUT_BEHAVIOR_SCALER
+		bool
+		default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_BEHAVIOR_SCALER))
+
+DT_COMPAT_ZMK_INPUT_BEHAVIOR_TOG_LAYER := zmk,input-behavior-tog-layer
+config ZMK_INPUT_BEHAVIOR_TOG_LAYER
+		bool
+		default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_BEHAVIOR_TOG_LAYER))
+
+DT_COMPAT_ZMK_INPUT_BEHAVIOR_SENSOR_ROTATE := zmk,input-behavior-sensor-rotate
+config ZMK_INPUT_BEHAVIOR_SENSOR_ROTATE
+		bool
+		default $(dt_compat_enabled,$(DT_COMPAT_ZMK_INPUT_BEHAVIOR_SENSOR_ROTATE))

@@ -1,0 +1,16 @@
+/*
+ * Copyright (c) 2020 The ZMK Contributors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/ {
+    behaviors {
+        /omit-if-no-ref/ ib_move_to_arrow: input_behavior_sensor_rotate {
+            compatible = "zmk,input-behavior-sensor-rotate";
+            #sensor-binding-cells = <4>;
+            threshold = <50>;
+            bindings = <&kp RIGHT>, <&kp LEFT>, <&kp UP>, <&kp DOWN>;
+        };
+    };
+}; 
