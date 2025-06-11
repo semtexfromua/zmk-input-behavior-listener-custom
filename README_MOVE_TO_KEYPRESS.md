@@ -1,4 +1,4 @@
-# ZMK Input Behavior Sensor Rotate
+# ZMK Input Behavior Move to Keypress
 
 Новий behavior для ZMK, який перетворює рух трекболу в натискання клавіш стрілок (або будь-яких інших клавіш).
 
@@ -16,7 +16,7 @@
 
 ```dts
 ib_move_to_arrow: ib_move_to_arrow {
-    compatible = "zmk,input-behavior-sensor-rotate";
+    compatible = "zmk,input-behavior-move-to-keypress";
     #binding-cells = <0>;
     threshold = <30>; // Поріг чутливості
     // x-invert; // Інверсія X (розкоментувати при потребі)
@@ -45,7 +45,7 @@ trackball_arrow_listener {
 **WASD навігація:**
 ```dts
 ib_move_to_wasd: ib_move_to_wasd {
-    compatible = "zmk,input-behavior-sensor-rotate";
+    compatible = "zmk,input-behavior-move-to-keypress";
     #binding-cells = <0>;
     threshold = <50>;
     bindings = <&kp D>, <&kp A>, <&kp W>, <&kp S>;
@@ -55,7 +55,7 @@ ib_move_to_wasd: ib_move_to_wasd {
 **Vim навігація:**
 ```dts
 ib_move_to_vim: ib_move_to_vim {
-    compatible = "zmk,input-behavior-sensor-rotate";
+    compatible = "zmk,input-behavior-move-to-keypress";
     #binding-cells = <0>;
     threshold = <40>;
     bindings = <&kp L>, <&kp H>, <&kp K>, <&kp J>;
@@ -97,7 +97,7 @@ ib_move_to_vim: ib_move_to_vim {
     };
 
     ib_move_to_arrow: ib_move_to_arrow {
-        compatible = "zmk,input-behavior-sensor-rotate";
+        compatible = "zmk,input-behavior-move-to-keypress";
         #binding-cells = <0>;
         threshold = <30>;
         bindings = <&kp RIGHT>, <&kp LEFT>, <&kp UP>, <&kp DOWN>;

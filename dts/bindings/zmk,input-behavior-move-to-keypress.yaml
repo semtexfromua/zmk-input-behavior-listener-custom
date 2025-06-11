@@ -1,9 +1,9 @@
 # Copyright (c) 2020 The ZMK Contributors
 # SPDX-License-Identifier: MIT
 
-description: Input Behavior Sensor Rotate
+description: Input Behavior Move to Keypress
 
-compatible: "zmk,input-behavior-sensor-rotate"
+compatible: "zmk,input-behavior-move-to-keypress"
 
 properties:
   threshold:
