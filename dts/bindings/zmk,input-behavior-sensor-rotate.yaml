@@ -20,13 +20,7 @@ properties:
     type: phandle-array
     required: true
     description: "Key bindings for right, left, up, down movements"
-  "#sensor-binding-cells":
+  "#binding-cells":
     type: int
-    const: 4
-    description: "Number of cells in bindings (right, left, up, down)"
-
-sensor-binding-cells:
-  - right
-  - left  
-  - up
-  - down 
+    const: 0
+    description: "Number of cells for this behavior binding" 

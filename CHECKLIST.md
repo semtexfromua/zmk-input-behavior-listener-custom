@@ -19,6 +19,7 @@
 - ✅ C код використовує правильні ZMK APIs
 - ✅ Макроси DT_INST правильно налаштовані
 - ✅ Boolean properties мають default values
+- ✅ **ВИПРАВЛЕНО** #binding-cells замість #sensor-binding-cells
 
 ## 🧪 Тестування
 
@@ -47,7 +48,7 @@ west build
 
     ib_move_to_arrow: ib_move_to_arrow {
         compatible = "zmk,input-behavior-sensor-rotate";
-        #sensor-binding-cells = <4>;
+        #binding-cells = <0>;
         threshold = <30>; // Спробуйте різні значення: 20, 30, 50
         bindings = <&kp RIGHT>, <&kp LEFT>, <&kp UP>, <&kp DOWN>;
     };
@@ -78,6 +79,7 @@ west build
 ## 🐛 Відомі потенційні проблеми
 
 ### 1. Compilation issues:
+- ✅ **ВИПРАВЛЕНО** - #binding-cells error
 - Перевірити чи всі includes правильні
 - Перевірити чи DT_DRV_COMPAT відповідає compatible string
 

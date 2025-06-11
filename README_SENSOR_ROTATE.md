@@ -17,7 +17,7 @@
 ```dts
 ib_move_to_arrow: ib_move_to_arrow {
     compatible = "zmk,input-behavior-sensor-rotate";
-    #sensor-binding-cells = <4>;
+    #binding-cells = <0>;
     threshold = <30>; // Поріг чутливості
     // x-invert; // Інверсія X (розкоментувати при потребі)
     // y-invert; // Інверсія Y (розкоментувати при потребі)
@@ -46,7 +46,7 @@ trackball_arrow_listener {
 ```dts
 ib_move_to_wasd: ib_move_to_wasd {
     compatible = "zmk,input-behavior-sensor-rotate";
-    #sensor-binding-cells = <4>;
+    #binding-cells = <0>;
     threshold = <50>;
     bindings = <&kp D>, <&kp A>, <&kp W>, <&kp S>;
 };
@@ -56,7 +56,7 @@ ib_move_to_wasd: ib_move_to_wasd {
 ```dts
 ib_move_to_vim: ib_move_to_vim {
     compatible = "zmk,input-behavior-sensor-rotate";
-    #sensor-binding-cells = <4>;
+    #binding-cells = <0>;
     threshold = <40>;
     bindings = <&kp L>, <&kp H>, <&kp K>, <&kp J>;
 };
@@ -98,7 +98,7 @@ ib_move_to_vim: ib_move_to_vim {
 
     ib_move_to_arrow: ib_move_to_arrow {
         compatible = "zmk,input-behavior-sensor-rotate";
-        #sensor-binding-cells = <4>;
+        #binding-cells = <0>;
         threshold = <30>;
         bindings = <&kp RIGHT>, <&kp LEFT>, <&kp UP>, <&kp DOWN>;
     };
