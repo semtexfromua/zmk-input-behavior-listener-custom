@@ -54,12 +54,6 @@ static void handle_rel_code(const struct behavior_move_to_keypress_config *confi
     // Listener вже відфільтрував події, обробляємо X та Y
     switch (evt->code) {
     case INPUT_REL_X:
-        // При першому вході в режим - скидаємо старі delta
-        if (data->data.mode == IB_MOVE_TO_KEYPRESS_XY_DATA_MODE_NONE) {
-            data->data.x_delta = 0;
-            data->data.y_delta = 0;
-            LOG_DBG("First activation: Cleared accumulated deltas");
-        }
         data->data.mode = IB_MOVE_TO_KEYPRESS_XY_DATA_MODE_REL;
         int16_t x_val = evt->value;
         if (config->x_invert) {
@@ -68,12 +62,6 @@ static void handle_rel_code(const struct behavior_move_to_keypress_config *confi
         data->data.x_delta += x_val;
         break;
     case INPUT_REL_Y:
-        // При першому вході в режим - скидаємо старі delta
-        if (data->data.mode == IB_MOVE_TO_KEYPRESS_XY_DATA_MODE_NONE) {
-            data->data.x_delta = 0;
-            data->data.y_delta = 0;
-            LOG_DBG("First activation: Cleared accumulated deltas");
-        }
         data->data.mode = IB_MOVE_TO_KEYPRESS_XY_DATA_MODE_REL;
         int16_t y_val = evt->value;
         if (config->y_invert) {
@@ -208,22 +196,9 @@ static int move_to_keypress_keymap_binding_pressed(struct zmk_behavior_binding *
     return ZMK_BEHAVIOR_TRANSPARENT;
 }
 
-static int move_to_keypress_keymap_binding_released(struct zmk_behavior_binding *binding,
-                                                  struct zmk_behavior_binding_event event) {
-    // При відпусканні клавіші layer - очищуємо накопичені delta
-    const struct device *dev = zmk_behavior_get_binding(binding->behavior_dev);
-    struct behavior_move_to_keypress_data *data = 
-        (struct behavior_move_to_keypress_data *)dev->data;
-    
-    // Скидаємо всі накопичені delta щоб запобігти зависанню при наступній активації
-    data->data.x_delta = 0;
-    data->data.y_delta = 0;
-    data->data.mode = IB_MOVE_TO_KEYPRESS_XY_DATA_MODE_NONE;
-    
-    LOG_DBG("Released: Cleared accumulated deltas");
-    
-    return ZMK_BEHAVIOR_TRANSPARENT;
-}
+// ВИДАЛЕНО: binding_released викликається при відпусканні кнопок трекболу, 
+// а не при зміні layer, що призводить до зависання. 
+// Скористаємося підходом input_behavior_scaler - без released handler.
 
 static int input_behavior_move_to_keypress_init(const struct device *dev) {
     struct behavior_move_to_keypress_data *data = dev->data;
@@ -239,7 +214,7 @@ static int input_behavior_move_to_keypress_init(const struct device *dev) {
 
 static const struct behavior_driver_api behavior_move_to_keypress_driver_api = {
     .binding_pressed = move_to_keypress_keymap_binding_pressed,
-    .binding_released = move_to_keypress_keymap_binding_released,
+    // НЕМАЄ .binding_released - як у input_behavior_scaler
 };
 
 #define MOVE_TO_KEYPRESS_BINDING(idx, node_id) \
