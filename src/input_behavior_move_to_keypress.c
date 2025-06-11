@@ -46,8 +46,7 @@ struct behavior_move_to_keypress_config {
     uint16_t rate_limit_ms;
     bool x_invert;
     bool y_invert;
-    // Використовуємо фіксовані keycodes для стрілок
-    // RIGHT=0x4F, LEFT=0x50, UP=0x52, DOWN=0x51
+    struct zmk_behavior_binding bindings[4]; // right, left, up, down - configurable bindings
 };
 
 static void handle_rel_code(const struct behavior_move_to_keypress_config *config,
@@ -75,14 +74,35 @@ static void handle_rel_code(const struct behavior_move_to_keypress_config *confi
     }
 }
 
-static void trigger_key_press(uint32_t keycode) {
-    // Використовуємо прямий ZMK HID API замість behavior calls для запобігання рекурсії
-    // Проста tap операція
-    zmk_hid_keyboard_press(keycode);
-    zmk_endpoints_send_report(ZMK_ENDPOINT_USB);
-    k_msleep(10); // Коротка затримка
-    zmk_hid_keyboard_release(keycode);
-    zmk_endpoints_send_report(ZMK_ENDPOINT_USB);
+static int trigger_key_press(const struct zmk_behavior_binding *binding) {
+    // Використовуємо ZMK макрос підхід для безпечного виклику bindings
+    // Це НЕ викликає рекурсію як прямі behavior calls
+    const struct device *behavior = zmk_behavior_get_binding(binding->behavior_dev);
+    if (!behavior) {
+        return -ENODEV;
+    }
+
+    const struct behavior_driver_api *api = (const struct behavior_driver_api *)behavior->api;
+    if (!api || !api->binding_pressed) {
+        return -ENOTSUP;
+    }
+
+    // Створюємо macro-style event без position info для уникнення рекурсії
+    struct zmk_behavior_binding_event event = {
+        .layer = 0,  // Default layer
+        .position = 0,  // No position info = macro style
+        .timestamp = k_uptime_get(),
+    };
+
+    // Виклик binding у macro стилі - це безпечно
+    int ret = api->binding_pressed((struct zmk_behavior_binding *)binding, event);
+    
+    // Негайний release для tap behavior
+    if (api->binding_released) {
+        api->binding_released((struct zmk_behavior_binding *)binding, event);
+    }
+    
+    return ret;
 }
 
 static void check_and_trigger_movements(const struct behavior_move_to_keypress_config *config,
@@ -102,14 +122,14 @@ static void check_and_trigger_movements(const struct behavior_move_to_keypress_c
     if (events_generated < max_events_per_cycle) {
         if (data->data.x_delta >= config->threshold) {
             // Move right
-            trigger_key_press(0x4F); // RIGHT arrow key
+            trigger_key_press(&config->bindings[0]); // right binding
             data->data.x_delta -= config->threshold;
             events_generated++;
             triggered = true;
             LOG_DBG("Triggered RIGHT movement, remaining delta: %d", data->data.x_delta);
         } else if (data->data.x_delta <= -config->threshold) {
             // Move left  
-            trigger_key_press(0x50); // LEFT arrow key
+            trigger_key_press(&config->bindings[1]); // left binding
             data->data.x_delta += config->threshold;
             events_generated++;
             triggered = true;
@@ -121,14 +141,14 @@ static void check_and_trigger_movements(const struct behavior_move_to_keypress_c
     if (events_generated < max_events_per_cycle) {
         if (data->data.y_delta >= config->threshold) {
             // Move down
-            trigger_key_press(0x51); // DOWN arrow key
+            trigger_key_press(&config->bindings[3]); // down binding
             data->data.y_delta -= config->threshold;
             events_generated++;
             triggered = true;
             LOG_DBG("Triggered DOWN movement, remaining delta: %d", data->data.y_delta);
         } else if (data->data.y_delta <= -config->threshold) {
             // Move up
-            trigger_key_press(0x52); // UP arrow key  
+            trigger_key_press(&config->bindings[2]); // up binding  
             data->data.y_delta += config->threshold;
             events_generated++;
             triggered = true;
@@ -204,6 +224,15 @@ static const struct behavior_driver_api behavior_move_to_keypress_driver_api = {
     // НЕМАЄ .binding_released - як у input_behavior_scaler
 };
 
+#define MOVE_TO_KEYPRESS_BINDING(idx, node_id) \
+    { \
+        .behavior_dev = DEVICE_DT_NAME(DT_PHANDLE_BY_IDX(node_id, bindings, idx)), \
+        .param1 = COND_CODE_1(DT_PHA_HAS_CELL_AT_IDX(node_id, bindings, idx, param1), \
+                             (DT_PHA_BY_IDX(node_id, bindings, idx, param1)), (0)), \
+        .param2 = COND_CODE_1(DT_PHA_HAS_CELL_AT_IDX(node_id, bindings, idx, param2), \
+                             (DT_PHA_BY_IDX(node_id, bindings, idx, param2)), (0)), \
+    }
+
 #define IBMTK_INST(n)                                                                                \
     static struct behavior_move_to_keypress_data behavior_move_to_keypress_data_##n = {};                \
     static struct behavior_move_to_keypress_config behavior_move_to_keypress_config_##n = {              \
@@ -211,6 +240,12 @@ static const struct behavior_driver_api behavior_move_to_keypress_driver_api = {
         .rate_limit_ms = DT_INST_PROP_OR(n, rate_limit_ms, 50),                                    \
         .x_invert = DT_INST_PROP_OR(n, x_invert, false),                                           \
         .y_invert = DT_INST_PROP_OR(n, y_invert, false),                                           \
+        .bindings = {                                                                              \
+            MOVE_TO_KEYPRESS_BINDING(0, DT_DRV_INST(n)), /* right */                                        \
+            MOVE_TO_KEYPRESS_BINDING(1, DT_DRV_INST(n)), /* left */                                         \
+            MOVE_TO_KEYPRESS_BINDING(2, DT_DRV_INST(n)), /* up */                                           \
+            MOVE_TO_KEYPRESS_BINDING(3, DT_DRV_INST(n)), /* down */                                         \
+        },                                                                                         \
     };                                                                                             \
     BEHAVIOR_DT_INST_DEFINE(n, input_behavior_move_to_keypress_init, NULL,                            \
                             &behavior_move_to_keypress_data_##n,                                      \

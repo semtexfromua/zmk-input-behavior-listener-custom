@@ -20,8 +20,10 @@ properties:
   y-invert:
     type: boolean  
     description: "Invert Y axis direction"
-# bindings property removed - using fixed arrow keys instead
-  # right=0x4F, left=0x50, up=0x52, down=0x51
+  bindings:
+    type: phandle-array
+    required: true
+    description: "Key bindings for right, left, up, down movements"
   "#binding-cells":
     type: int
     const: 0
