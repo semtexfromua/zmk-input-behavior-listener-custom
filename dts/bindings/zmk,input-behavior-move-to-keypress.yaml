@@ -26,6 +26,9 @@ properties:
   y-invert:
     type: boolean  
     description: "Invert Y axis direction"
+  reset-other-axis:
+    type: boolean
+    description: "Reset opposite axis delta when any movement is triggered (diagonal filtering)"
   bindings:
     type: phandle-array
     required: true

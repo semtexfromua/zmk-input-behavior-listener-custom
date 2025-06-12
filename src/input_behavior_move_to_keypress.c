@@ -59,6 +59,7 @@ struct behavior_move_to_keypress_config {
     int16_t rate_limit_ms;
     bool x_invert;
     bool y_invert;
+    bool reset_other_axis;  // Скидати протилежну вісь при спрацьовуванні
     struct zmk_behavior_binding bindings[4]; // RIGHT, LEFT, UP, DOWN
 };
 
@@ -176,6 +177,12 @@ static void check_and_schedule_movements(const struct behavior_move_to_keypress_
         movement_triggered = true;
         LOG_DBG("RIGHT movement triggered, remaining delta: %d", data->data.x_delta);
         
+        // Опціональне скидання Y осі при X спрацьовуванні (diagonal filtering)
+        if (config->reset_other_axis) {
+            data->data.y_delta = 0;
+            LOG_DBG("Reset Y axis delta due to X movement");
+        }
+        
     } else if (data->data.x_delta <= -config->x_threshold) {
         // LEFT movement  
         data->current_binding = config->bindings[1];
@@ -183,6 +190,12 @@ static void check_and_schedule_movements(const struct behavior_move_to_keypress_
         data->data.x_delta += config->x_threshold;
         movement_triggered = true;
         LOG_DBG("LEFT movement triggered, remaining delta: %d", data->data.x_delta);
+        
+        // Опціональне скидання Y осі при X спрацьовуванні (diagonal filtering)
+        if (config->reset_other_axis) {
+            data->data.y_delta = 0;
+            LOG_DBG("Reset Y axis delta due to X movement");
+        }
     }
     
     // Y axis (якщо X не спрацював)
@@ -195,6 +208,12 @@ static void check_and_schedule_movements(const struct behavior_move_to_keypress_
             movement_triggered = true;
             LOG_DBG("DOWN movement triggered, remaining delta: %d", data->data.y_delta);
             
+            // Опціональне скидання X осі при Y спрацьовуванні (diagonal filtering)
+            if (config->reset_other_axis) {
+                data->data.x_delta = 0;
+                LOG_DBG("Reset X axis delta due to Y movement");
+            }
+            
         } else if (data->data.y_delta <= -config->y_threshold) {
             // UP movement
             data->current_binding = config->bindings[2];
@@ -202,6 +221,12 @@ static void check_and_schedule_movements(const struct behavior_move_to_keypress_
             data->data.y_delta += config->y_threshold;
             movement_triggered = true;
             LOG_DBG("UP movement triggered, remaining delta: %d", data->data.y_delta);
+            
+            // Опціональне скидання X осі при Y спрацьовуванні (diagonal filtering)
+            if (config->reset_other_axis) {
+                data->data.x_delta = 0;
+                LOG_DBG("Reset X axis delta due to Y movement");
+            }
         }
     }
     
@@ -332,6 +357,7 @@ static const struct behavior_driver_api behavior_move_to_keypress_driver_api = {
         .rate_limit_ms = DT_INST_PROP_OR(n, rate_limit_ms, 50),                             \
         .x_invert = DT_INST_PROP_OR(n, x_invert, false),                                    \
         .y_invert = DT_INST_PROP_OR(n, y_invert, false),                                    \
+        .reset_other_axis = DT_INST_PROP_OR(n, reset_other_axis, false),                    \
         .bindings = {                                                                       \
             MOVE_TO_KEYPRESS_BINDING(0, DT_DRV_INST(n)), /* RIGHT */                       \
             MOVE_TO_KEYPRESS_BINDING(1, DT_DRV_INST(n)), /* LEFT */                        \
