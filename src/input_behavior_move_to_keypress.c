@@ -54,6 +54,8 @@ struct behavior_move_to_keypress_data {
 
 struct behavior_move_to_keypress_config {
     int16_t threshold;
+    int16_t x_threshold;    // Окремий threshold для X осі
+    int16_t y_threshold;    // Окремий threshold для Y осі
     int16_t rate_limit_ms;
     bool x_invert;
     bool y_invert;
@@ -78,10 +80,11 @@ static void handle_rel_code(const struct behavior_move_to_keypress_config *confi
         break;
     }
     
-    // Overflow protection (як в офіційному ZMK коді)
-    const int16_t max_delta = config->threshold * 3;
-    data->data.x_delta = CLAMP(data->data.x_delta, -max_delta, max_delta);
-    data->data.y_delta = CLAMP(data->data.y_delta, -max_delta, max_delta);
+    // Overflow protection (як в офіційному ZMK коді) з окремими threshold
+    const int16_t x_max_delta = config->x_threshold * 3;
+    const int16_t y_max_delta = config->y_threshold * 3;
+    data->data.x_delta = CLAMP(data->data.x_delta, -x_max_delta, x_max_delta);
+    data->data.y_delta = CLAMP(data->data.y_delta, -y_max_delta, y_max_delta);
 }
 
 // Work Queue Callbacks (як в tog_layer)
@@ -165,38 +168,38 @@ static void check_and_schedule_movements(const struct behavior_move_to_keypress_
     bool movement_triggered = false;
     
     // Обробка X axis (тільки один рух за раз для стабільності)
-    if (data->data.x_delta >= config->threshold) {
+    if (data->data.x_delta >= config->x_threshold) {
         // RIGHT movement
         data->current_binding = config->bindings[0];
         data->current_event = original_event; // Збереження layer context
-        data->data.x_delta -= config->threshold;
+        data->data.x_delta -= config->x_threshold;
         movement_triggered = true;
         LOG_DBG("RIGHT movement triggered, remaining delta: %d", data->data.x_delta);
         
-    } else if (data->data.x_delta <= -config->threshold) {
+    } else if (data->data.x_delta <= -config->x_threshold) {
         // LEFT movement  
         data->current_binding = config->bindings[1];
         data->current_event = original_event;
-        data->data.x_delta += config->threshold;
+        data->data.x_delta += config->x_threshold;
         movement_triggered = true;
         LOG_DBG("LEFT movement triggered, remaining delta: %d", data->data.x_delta);
     }
     
     // Y axis (якщо X не спрацював)
     if (!movement_triggered) {
-        if (data->data.y_delta >= config->threshold) {
+        if (data->data.y_delta >= config->y_threshold) {
             // DOWN movement
             data->current_binding = config->bindings[3];
             data->current_event = original_event;
-            data->data.y_delta -= config->threshold;
+            data->data.y_delta -= config->y_threshold;
             movement_triggered = true;
             LOG_DBG("DOWN movement triggered, remaining delta: %d", data->data.y_delta);
             
-        } else if (data->data.y_delta <= -config->threshold) {
+        } else if (data->data.y_delta <= -config->y_threshold) {
             // UP movement
             data->current_binding = config->bindings[2];
             data->current_event = original_event;
-            data->data.y_delta += config->threshold;
+            data->data.y_delta += config->y_threshold;
             movement_triggered = true;
             LOG_DBG("UP movement triggered, remaining delta: %d", data->data.y_delta);
         }
@@ -324,6 +327,8 @@ static const struct behavior_driver_api behavior_move_to_keypress_driver_api = {
     static struct behavior_move_to_keypress_data behavior_move_to_keypress_data_##n = {};   \
     static struct behavior_move_to_keypress_config behavior_move_to_keypress_config_##n = { \
         .threshold = DT_INST_PROP(n, threshold),                                            \
+        .x_threshold = DT_INST_PROP_OR(n, x_threshold, DT_INST_PROP(n, threshold)),         \
+        .y_threshold = DT_INST_PROP_OR(n, y_threshold, DT_INST_PROP(n, threshold)),         \
         .rate_limit_ms = DT_INST_PROP_OR(n, rate_limit_ms, 50),                             \
         .x_invert = DT_INST_PROP_OR(n, x_invert, false),                                    \
         .y_invert = DT_INST_PROP_OR(n, y_invert, false),                                    \

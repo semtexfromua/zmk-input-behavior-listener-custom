@@ -9,7 +9,13 @@ properties:
   threshold:
     type: int
     default: 50
-    description: "Threshold value for triggering key events"
+    description: "Threshold value for triggering key events (used as default for both axes)"
+  x-threshold:
+    type: int
+    description: "Threshold value for X axis (overrides general threshold if specified)"
+  y-threshold:
+    type: int
+    description: "Threshold value for Y axis (overrides general threshold if specified)"
   rate-limit-ms:
     type: int
     default: 50
