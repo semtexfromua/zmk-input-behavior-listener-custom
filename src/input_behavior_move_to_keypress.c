@@ -38,28 +38,25 @@ struct behavior_move_to_keypress_data {
     const struct device *dev;
     struct move_to_keypress_xy_data data;
     
-    // Work queue items для асинхронної генерації key events (як в tog_layer)
     struct k_work_delayable key_press_work;
     struct k_work_delayable key_release_work;
     
-    // Поточний binding для обробки
     struct zmk_behavior_binding current_binding;
     struct zmk_behavior_binding_event current_event;
     
-    // State management
     int64_t last_trigger_time;
     bool work_scheduled;
-    uint8_t active_layer;  // Layer де відбулася активація
+    uint8_t active_layer;
 };
 
 struct behavior_move_to_keypress_config {
     int16_t threshold;
-    int16_t x_threshold;    // Окремий threshold для X осі
-    int16_t y_threshold;    // Окремий threshold для Y осі
+    int16_t x_threshold;
+    int16_t y_threshold;
     int16_t rate_limit_ms;
     bool x_invert;
     bool y_invert;
-    bool reset_other_axis;  // Скидати протилежну вісь при спрацьовуванні
+    bool reset_other_axis;
     struct zmk_behavior_binding bindings[4]; // RIGHT, LEFT, UP, DOWN
 };
 
@@ -81,49 +78,36 @@ static void handle_rel_code(const struct behavior_move_to_keypress_config *confi
         break;
     }
     
-    // Overflow protection (як в офіційному ZMK коді) з окремими threshold
     const int16_t x_max_delta = config->x_threshold * 3;
     const int16_t y_max_delta = config->y_threshold * 3;
     data->data.x_delta = CLAMP(data->data.x_delta, -x_max_delta, x_max_delta);
     data->data.y_delta = CLAMP(data->data.y_delta, -y_max_delta, y_max_delta);
 }
 
-// Work Queue Callbacks (як в tog_layer)
 static void key_press_work_cb(struct k_work *work) {
     struct k_work_delayable *work_delayable = (struct k_work_delayable *)work;
     struct behavior_move_to_keypress_data *data = CONTAINER_OF(work_delayable,
                                                               struct behavior_move_to_keypress_data,
                                                               key_press_work);
     
-    // Перевірка чи layer все ще активний (layer lifecycle protection)
     if (!zmk_keymap_layer_active(data->active_layer)) {
-        LOG_DBG("Layer %d deactivated, skipping key press", data->active_layer);
         data->work_scheduled = false;
         return;
     }
     
-    // Отримання behavior API
     const struct device *behavior = zmk_behavior_get_binding(data->current_binding.behavior_dev);
     if (!behavior) {
-        LOG_WRN("Behavior device not found");
         data->work_scheduled = false;
         return;
     }
     
     const struct behavior_driver_api *api = behavior->api;
     if (!api || !api->binding_pressed) {
-        LOG_WRN("Behavior API not available");
         data->work_scheduled = false;
         return;
     }
     
-    // Виклик behavior API з правильним context
-    int ret = api->binding_pressed(&data->current_binding, data->current_event);
-    if (ret < 0) {
-        LOG_ERR("Key press failed: %d", ret);
-    }
-    
-    LOG_DBG("Key press executed for layer %d", data->active_layer);
+    api->binding_pressed(&data->current_binding, data->current_event);
 }
 
 static void key_release_work_cb(struct k_work *work) {
@@ -132,14 +116,11 @@ static void key_release_work_cb(struct k_work *work) {
                                                               struct behavior_move_to_keypress_data,
                                                               key_release_work);
     
-    // Перевірка layer state
     if (!zmk_keymap_layer_active(data->active_layer)) {
-        LOG_DBG("Layer %d deactivated, skipping key release", data->active_layer);
         data->work_scheduled = false;
         return;
     }
     
-    // Отримання behavior API
     const struct device *behavior = zmk_behavior_get_binding(data->current_binding.behavior_dev);
     if (!behavior) {
         data->work_scheduled = false;
@@ -147,20 +128,11 @@ static void key_release_work_cb(struct k_work *work) {
     }
     
     const struct behavior_driver_api *api = behavior->api;
-    if (!api || !api->binding_released) {
-        data->work_scheduled = false;
-        return;
+    if (api && api->binding_released) {
+        api->binding_released(&data->current_binding, data->current_event);
     }
     
-    // Виклик behavior API
-    int ret = api->binding_released(&data->current_binding, data->current_event);
-    if (ret < 0) {
-        LOG_ERR("Key release failed: %d", ret);
-    }
-    
-    // Завершення роботи
     data->work_scheduled = false;
-    LOG_DBG("Key release executed for layer %d", data->active_layer);
 }
 
 static void check_and_schedule_movements(const struct behavior_move_to_keypress_config *config,
@@ -168,78 +140,56 @@ static void check_and_schedule_movements(const struct behavior_move_to_keypress_
                                         struct zmk_behavior_binding_event original_event) {
     bool movement_triggered = false;
     
-    // Обробка X axis (тільки один рух за раз для стабільності)
     if (data->data.x_delta >= config->x_threshold) {
-        // RIGHT movement
         data->current_binding = config->bindings[0];
-        data->current_event = original_event; // Збереження layer context
+        data->current_event = original_event;
         data->data.x_delta -= config->x_threshold;
         movement_triggered = true;
-        LOG_DBG("RIGHT movement triggered, remaining delta: %d", data->data.x_delta);
         
-        // Опціональне скидання Y осі при X спрацьовуванні (diagonal filtering)
         if (config->reset_other_axis) {
             data->data.y_delta = 0;
-            LOG_DBG("Reset Y axis delta due to X movement");
         }
         
     } else if (data->data.x_delta <= -config->x_threshold) {
-        // LEFT movement  
         data->current_binding = config->bindings[1];
         data->current_event = original_event;
         data->data.x_delta += config->x_threshold;
         movement_triggered = true;
-        LOG_DBG("LEFT movement triggered, remaining delta: %d", data->data.x_delta);
         
-        // Опціональне скидання Y осі при X спрацьовуванні (diagonal filtering)
         if (config->reset_other_axis) {
             data->data.y_delta = 0;
-            LOG_DBG("Reset Y axis delta due to X movement");
         }
     }
     
-    // Y axis (якщо X не спрацював)
     if (!movement_triggered) {
         if (data->data.y_delta >= config->y_threshold) {
-            // DOWN movement
             data->current_binding = config->bindings[3];
             data->current_event = original_event;
             data->data.y_delta -= config->y_threshold;
             movement_triggered = true;
-            LOG_DBG("DOWN movement triggered, remaining delta: %d", data->data.y_delta);
             
-            // Опціональне скидання X осі при Y спрацьовуванні (diagonal filtering)
             if (config->reset_other_axis) {
                 data->data.x_delta = 0;
-                LOG_DBG("Reset X axis delta due to Y movement");
             }
             
         } else if (data->data.y_delta <= -config->y_threshold) {
-            // UP movement
             data->current_binding = config->bindings[2];
             data->current_event = original_event;
             data->data.y_delta += config->y_threshold;
             movement_triggered = true;
-            LOG_DBG("UP movement triggered, remaining delta: %d", data->data.y_delta);
             
-            // Опціональне скидання X осі при Y спрацьовуванні (diagonal filtering)
             if (config->reset_other_axis) {
                 data->data.x_delta = 0;
-                LOG_DBG("Reset X axis delta due to Y movement");
             }
         }
     }
     
-    // Планування key events через Work Queue (як tog_layer)
     if (movement_triggered && !data->work_scheduled) {
         data->work_scheduled = true;
         data->last_trigger_time = k_uptime_get();
         
-        // Асинхронна генерація key press/release
         k_work_schedule(&data->key_press_work, K_MSEC(0));
-        k_work_schedule(&data->key_release_work, K_MSEC(10)); // Короткий press
-        
-        LOG_DBG("Scheduled key movement for layer %d", data->active_layer);
+        k_work_schedule(&data->key_release_work, K_MSEC(10));
     }
 }
 
@@ -249,10 +199,8 @@ static int move_to_keypress_keymap_binding_pressed(struct zmk_behavior_binding *
     struct behavior_move_to_keypress_data *data = dev->data;
     const struct behavior_move_to_keypress_config *config = dev->config;
     
-    // Event Position Hijacking Pattern (як всі працюючі behaviors)
     struct input_event *evt = (struct input_event *)event.position;
     
-    // Фільтрація input events
     if (evt->type != INPUT_EV_REL) {
         return ZMK_BEHAVIOR_TRANSPARENT;
     }
@@ -260,61 +208,30 @@ static int move_to_keypress_keymap_binding_pressed(struct zmk_behavior_binding *
         return ZMK_BEHAVIOR_TRANSPARENT;
     }
     
-    // Rate limiting
     int64_t current_time = k_uptime_get();
     if (current_time - data->last_trigger_time < config->rate_limit_ms) {
-        evt->value = 0;  // Блокуємо event
+        evt->value = 0;
         return ZMK_BEHAVIOR_OPAQUE;
     }
     
-    // Збереження layer context для lifecycle management
     data->active_layer = event.layer;
     
-    // Обробка input events (накопичення deltas)
     handle_rel_code(config, data, evt);
     
     if (data->data.mode == IB_MOVE_TO_KEYPRESS_XY_DATA_MODE_REL) {
-        // Перевірка thresholds та планування key events
         check_and_schedule_movements(config, data, event);
         
-        // Direct Event Modification Pattern (як scaler)
-        evt->value = 0;  // Завжди блокуємо оригінальний input event
+        evt->value = 0;
         return ZMK_BEHAVIOR_OPAQUE;
     }
 
     return ZMK_BEHAVIOR_TRANSPARENT;
 }
 
-// Cleanup function для emergency situations
-static int move_to_keypress_cleanup(struct behavior_move_to_keypress_data *data) {
-    // Скасування pending work items
-    k_work_cancel_delayable(&data->key_press_work);
-    k_work_cancel_delayable(&data->key_release_work);
-    
-    // Очищення стану
-    data->data.mode = IB_MOVE_TO_KEYPRESS_XY_DATA_MODE_NONE;
-    data->data.x_delta = 0;
-    data->data.y_delta = 0;
-    data->work_scheduled = false;
-    
-    LOG_DBG("Move to keypress state cleaned up");
-    return 0;
-}
-
-// Layer State Listener для cleanup (додатковий захист)
 static int move_to_keypress_layer_listener(const zmk_event_t *eh) {
-    struct zmk_layer_state_changed *ev = as_zmk_layer_state_changed(eh);
-    if (!ev || ev->state) {
-        return ZMK_EV_EVENT_BUBBLE; // Активація layer - не реагуємо
-    }
-    
-    // Layer деактивується - можемо додати cleanup логіку тут якщо потрібно
-    LOG_DBG("Layer %d deactivated", ev->layer);
-    
     return ZMK_EV_EVENT_BUBBLE;
 }
 
-// Ініціалізація behavior
 static int input_behavior_move_to_keypress_init(const struct device *dev) {
     struct behavior_move_to_keypress_data *data = dev->data;
     data->dev = dev;
@@ -325,17 +242,14 @@ static int input_behavior_move_to_keypress_init(const struct device *dev) {
     data->work_scheduled = false;
     data->active_layer = 0;
     
-    // Ініціалізація Work Queue items (як в tog_layer)
     k_work_init_delayable(&data->key_press_work, key_press_work_cb);
     k_work_init_delayable(&data->key_release_work, key_release_work_cb);
     
     return 0;
 }
 
-// API definition
 static const struct behavior_driver_api behavior_move_to_keypress_driver_api = {
     .binding_pressed = move_to_keypress_keymap_binding_pressed,
-    // .binding_released не потрібно - ми не обробляємо release events
 };
 
 #define MOVE_TO_KEYPRESS_BINDING(idx, node_id) \
@@ -347,7 +261,6 @@ static const struct behavior_driver_api behavior_move_to_keypress_driver_api = {
                              (DT_PHA_BY_IDX(node_id, bindings, idx, param2)), (0)), \
     }
 
-// Device definition
 #define MTKLP_INST(n)                                                                       \
     static struct behavior_move_to_keypress_data behavior_move_to_keypress_data_##n = {};   \
     static struct behavior_move_to_keypress_config behavior_move_to_keypress_config_##n = { \
@@ -373,7 +286,6 @@ static const struct behavior_driver_api behavior_move_to_keypress_driver_api = {
 
 DT_INST_FOREACH_STATUS_OKAY(MTKLP_INST)
 
-// Реєстрація layer listener (опціонально)
 ZMK_LISTENER(move_to_keypress_layer, move_to_keypress_layer_listener);
 ZMK_SUBSCRIPTION(move_to_keypress_layer, zmk_layer_state_changed);
 

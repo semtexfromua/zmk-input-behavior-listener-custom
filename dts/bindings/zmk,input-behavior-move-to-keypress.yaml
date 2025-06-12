@@ -1,39 +1,45 @@
-# Copyright (c) 2020 The ZMK Contributors
+# Copyright (c) 2024 The ZMK Contributors
 # SPDX-License-Identifier: MIT
 
-description: Input Behavior Move to Keypress
+description: Input behavior for converting trackball movement to keypress events
 
 compatible: "zmk,input-behavior-move-to-keypress"
+
+include: base.yaml
 
 properties:
   threshold:
     type: int
     default: 50
-    description: "Threshold value for triggering key events (used as default for both axes)"
+    description: Default threshold value for triggering movement
+
   x-threshold:
     type: int
-    description: "Threshold value for X axis (overrides general threshold if specified)"
+    description: Threshold for X-axis movement (overrides general threshold if set)
+
   y-threshold:
     type: int
-    description: "Threshold value for Y axis (overrides general threshold if specified)"
+    description: Threshold for Y-axis movement (overrides general threshold if set)
+
   rate-limit-ms:
     type: int
     default: 50
-    description: "Minimum interval between key events in milliseconds"
+    description: Minimum time between key events in milliseconds
+
   x-invert:
     type: boolean
-    description: "Invert X axis direction"
+    description: Invert X-axis direction
+
   y-invert:
-    type: boolean  
-    description: "Invert Y axis direction"
+    type: boolean
+    description: Invert Y-axis direction
+
   reset-other-axis:
     type: boolean
-    description: "Reset opposite axis delta when any movement is triggered (diagonal filtering)"
+    default: false
+    description: Reset opposite axis delta when one axis triggers movement
+
   bindings:
-    type: phandle-array
+    type: phandles
     required: true
-    description: "Key bindings for right, left, up, down movements"
-  "#binding-cells":
-    type: int
-    const: 0
-    description: "Number of cells for this behavior binding" 
+    description: Key bindings for directions (RIGHT, LEFT, UP, DOWN) 
