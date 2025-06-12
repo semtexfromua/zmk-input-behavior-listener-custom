@@ -36,10 +36,13 @@ properties:
 
   reset-other-axis:
     type: boolean
-    default: false
     description: Reset opposite axis delta when one axis triggers movement
 
   bindings:
     type: phandles
     required: true
-    description: Key bindings for directions (RIGHT, LEFT, UP, DOWN) 
+    description: Key bindings for directions (RIGHT, LEFT, UP, DOWN)
+
+  "#binding-cells":
+    type: int
+    const: 0 
