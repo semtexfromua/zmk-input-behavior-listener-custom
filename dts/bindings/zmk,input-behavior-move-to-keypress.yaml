@@ -39,7 +39,7 @@ properties:
     description: Reset opposite axis delta when one axis triggers movement
 
   bindings:
-    type: phandles
+    type: phandle-array
     required: true
     description: Key bindings for directions (RIGHT, LEFT, UP, DOWN)
 
